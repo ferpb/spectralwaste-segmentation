@@ -41,7 +41,14 @@ pip install -e .
 
 ## Dataset
 
-This code uses a preprocessed version of the raw SpectralWaste dataset. The preprocessing steps include aligning the modalities, downsampling, generating labels for the hyperspectral images, dividing the data into splits and creating dimensionality-reduced versions of the images. You can directly download the preprocessed dataset used in the experiments from [Zenodo (23 GB)][preprocessed-dataset].
+This code uses a preprocessed version of the raw [SpectralWaste dataset][spectralwaste-dataset]. The preprocessing steps include aligning the modalities, downsampling, generating labels for the hyperspectral images, dividing the data into splits and creating dimensionality-reduced versions of the images. You can directly download the preprocessed dataset used in the experiments (23 GB) from [Zenodo][preprocessed-labeled-zenodo] or [OneDrive][preprocessed-labeled-onedrive].
+
+Additionally, you can download the unlabeled images preprocessed in the same way (178 GB) from [OneDrive][preprocessed-unlabeled-onedrive].
+
+[spectralwaste-dataset]: https://github.com/ferpb/spectralwaste-dataset
+[preprocessed-labeled-zenodo]: https://zenodo.org/records/10880544
+[preprocessed-labeled-onedrive]: https://unizares-my.sharepoint.com/:u:/g/personal/756012_unizar_es/EVJygVCmvs1BrCvA_WEtcIcBkUGbgsmN4fLaWGwr_lLJBw?e=lSPWxs
+[preprocessed-unlabeled-onedrive]: https://unizares-my.sharepoint.com/:u:/g/personal/756012_unizar_es/Ea5ec2LtwoVOjlKfobsqbwsBTsgQMbIcnh_p0YbQvEH36A?e=vu4BHh
 
 ## Evaluation
 
@@ -58,6 +65,8 @@ python scripts/dim_reduction.py --data-path path/to/dataset/hyper --reduction-me
 ```
 
 It will create a new directory with the format `path/to/dataset/hyper_<reduction_model><num_components>`.
+
+[checkpoints]: https://unizares-my.sharepoint.com/:f:/g/personal/756012_unizar_es/Ej1qFSZwxbxKt2XqUxLGumUBo2hRf0HBm0ULXySu4DYJQA?e=9QUaPs
 
 ## Training
 
@@ -82,6 +91,3 @@ You can add the `--wandb PROJECT` option to log the training results to a Weight
 ## Visualization
 
 The `notebooks` directory contains Jupyter notebooks to visualize the data and the segmentataion results. They assume that both the dataset and the checkpoints are stored in a `data` directory in the root of the repo.
-
-[preprocessed-dataset]: https://zenodo.org/records/10880544
-[checkpoints]: https://unizares-my.sharepoint.com/:f:/g/personal/756012_unizar_es/Ej1qFSZwxbxKt2XqUxLGumUBo2hRf0HBm0ULXySu4DYJQA?e=9QUaPs
