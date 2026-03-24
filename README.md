@@ -83,7 +83,7 @@ For the multimodal models, you can indicate two input modalities separated by a 
 For example, to train CMX-B0 using both RGB and hyperspectral modalities supervised with the RGB labels run:
 
 ```
-python train_model.py --data-path PATH --model cmx_b0 --input-mode rgb,hyper --target-mode labels_rgb --max-epoch 200
+python scripts/train_model.py --data-path PATH --model cmx_b0 --input-mode rgb,hyper --target-mode labels_rgb --max-epoch 200
 ```
 
 You can add the `--wandb PROJECT` option to log the training results to a Weights and Biases project named `PROJECT`.

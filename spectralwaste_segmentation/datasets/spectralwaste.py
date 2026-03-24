@@ -54,6 +54,12 @@ class SpectralWasteSegmentation(torchvision.datasets.VisionDataset):
         SpectralWasteClass('bag', 0, (255, 165, 0), False)
     ]
 
+    classes_pixel_counts = {
+        "train": [27533362, 1847908, 1095922, 214584, 392213, 32609, 2568906],
+        "val": [8818403, 714660, 371597, 64520, 129167, 11413, 834752],
+        "test": [8985238, 772133, 372901, 94355, 104697, 23222, 854110],
+    }
+
     def __init__(
         self,
         root: str,
@@ -79,6 +85,7 @@ class SpectralWasteSegmentation(torchvision.datasets.VisionDataset):
         self.classes_names = [c.name for c in self.classes]
         self.palette = [c.color for c in self.classes]
         self.num_classes = len(self.classes_names)
+        self.pixel_counts = self.classes_pixel_counts[split]
 
         self.input_dirs = [Path(root, mode, split) for mode in self.input_mode]
         self.target_dir = Path(root, self.target_mode, split)
@@ -112,9 +119,8 @@ class SpectralWasteSegmentation(torchvision.datasets.VisionDataset):
             if issubclass(input.dtype.type, np.integer):
                 input = input.astype(np.float32) / np.iinfo(input.dtype).max
 
-            # convert to tensor
-            input = tv_tensors.Image(input)
-            input = input.permute(2, 0, 1)
+            # convert image to torchvision tensor
+            input = tv_tensors.Image(torch.from_numpy(input).permute(2, 0, 1))
             inputs.append(input)
 
         # load target

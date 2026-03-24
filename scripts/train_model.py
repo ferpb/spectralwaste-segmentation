@@ -1,6 +1,8 @@
 import argparse
+import copy
 import os
 import uuid
+import json
 
 import torch
 import torchmetrics
@@ -30,23 +32,12 @@ def save_checkpoint(model, optimizer, lr_scheduler, epoch, args, suffix):
     }
     torch.save(checkpoint, os.path.join(args.results_path, f'{args.experiment_name}.{suffix}.pth'))
 
-def median_frequency_exp(dataset: Dataset, num_classes: int, soft: float):
-    # Process the dataset in parallel
-    loader = DataLoader(dataset, batch_size=64, num_workers=8, shuffle=False)
-
-    # Initialize counts
-    classes_freqs = torch.zeros(num_classes, dtype=torch.int64)
-
-    for _, target in loader:
-        classes, counts = torch.unique(target, return_counts=True)
-        ignore = torch.bitwise_or(classes < 0, classes >= num_classes)
-        classes_freqs.index_add_(0, classes[~ignore], counts[~ignore])
-
-    zeros = classes_freqs == 0
+def median_frequency_exp(pixel_counts, soft):
+    pixel_counts = torch.tensor(pixel_counts)
+    zeros = pixel_counts == 0
     if zeros.sum() != 0:
         print("There are some classes not present in the training samples")
-
-    result = classes_freqs.median() / classes_freqs
+    result = pixel_counts.median() / pixel_counts
     result[zeros] = 0  # avoid inf values
     return result ** soft
 
@@ -71,7 +62,7 @@ def train_epoch(model, dataloader, criterion, optimizer, lr_scheduler, device):
         mean_loss.update(loss)
 
     lr_scheduler.step()
-    return mean_loss.compute()
+    return mean_loss.compute().item()
 
 def evaluate(model, dataloader, criterion, num_classes, device):
     model.eval()
@@ -93,9 +84,9 @@ def evaluate(model, dataloader, criterion, num_classes, device):
 
     mean_loss = mean_loss.compute()
     class_iou = class_iou.compute()
-    miou = class_iou[1:].mean()
+    iou_mean = class_iou[1:].mean()
     iou_std = class_iou[1:].std()
-    return mean_loss, class_iou, miou, iou_std
+    return mean_loss.item(), class_iou, iou_mean.item(), iou_std.item()
 
 def main(args):
     args.experiment_name = f'{args.model}.{args.input_mode}.{args.target_mode}.{str(uuid.uuid4())[:4]}'
@@ -109,16 +100,16 @@ def main(args):
     val_data = SpectralWasteSegmentation(args.data_path, split='val', input_mode=args.input_mode, target_mode=args.target_mode, transforms=SemanticSegmentationTest(), target_type='')
     test_data = SpectralWasteSegmentation(args.data_path, split='test', input_mode=args.input_mode, target_mode=args.target_mode, transforms=SemanticSegmentationTest(), target_type='')
 
-    train_dataloader = DataLoader(train_data, batch_size=args.batch_size, shuffle=True, num_workers=30)
-    val_dataloader = DataLoader(val_data, batch_size=args.batch_size, shuffle=False, num_workers=30)
-    test_dataloader = DataLoader(test_data, batch_size=args.batch_size, shuffle=False, num_workers=30)
+    train_dataloader = DataLoader(train_data, batch_size=args.batch_size, shuffle=True, num_workers=16)
+    val_dataloader = DataLoader(val_data, batch_size=args.batch_size, shuffle=False, num_workers=16)
+    test_dataloader = DataLoader(test_data, batch_size=args.batch_size, shuffle=False, num_workers=16)
 
     model = models.create_model(args.model, train_data.num_channels, train_data.num_classes).to(args.device)
     optimizer, lr_scheduler = models.create_optimizers(args.model, model, args.max_epoch)
 
     # Calculate loss weights and define loss
-    loss_weights = median_frequency_exp(train_data, train_data.num_classes, 0.12)
-    criterion = torch.nn.CrossEntropyLoss(loss_weights.to(args.device))
+    loss_weights = median_frequency_exp(train_data.pixel_counts, 0.12).to(args.device)
+    criterion = torch.nn.CrossEntropyLoss(loss_weights)
 
     if args.resume:
         checkpoint = torch.load(args.resume)
@@ -136,19 +127,21 @@ def main(args):
 
     # Start logging
     if args.wandb:
-        wandb.init(project=args.wandb, entity='separa', name=args.experiment_name, config=args)
+        wandb.init(project=args.wandb, entity='spectralwaste', name=args.experiment_name, config=args)
 
     # Train
     os.makedirs(args.results_path, exist_ok=True)
     best_val_miou = 0
+    best_model = copy.deepcopy(model)
 
     for epoch in range(args.start_epoch, args.max_epoch):
         train_loss = train_epoch(model, train_dataloader, criterion, optimizer, lr_scheduler, args.device)
         val_loss, val_class_iou, val_miou, val_iou_std = evaluate(model, val_dataloader, criterion, train_data.num_classes, args.device)
 
         if val_miou > best_val_miou:
+            best_val_miou = val_miou
             save_checkpoint(model, optimizer, lr_scheduler, epoch, args, 'best')
-            best_model = model
+            best_model = copy.deepcopy(model)
 
         print(f'epoch: {epoch:04d} | train/loss: {train_loss:.4f} | val/loss: {val_loss:.4f} | val/miou: {val_miou:.4f}')
 

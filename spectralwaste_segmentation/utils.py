@@ -9,7 +9,6 @@ def get_color_labels(labels, palette):
     return color_labels
 
 def plot_labels(image, labels, palette, ax=None):
-
     if not ax:
         ax = plt.gca()
     color_labels_alpha = np.dstack([get_color_labels(labels, palette), np.zeros_like(labels)])
